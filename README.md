@@ -33,7 +33,7 @@
 
 ### 方式二：HACS 自定义仓库（如已发布）
 
-HACS → 自定义存储库 → 填入仓库地址 → 类型选 *Integration* → 下载 → 重启 HA
+HACS → 自定义存储库 → 填入仓库地址 https://github.com/carl-chang/afu_scale → 类型选 *Integration* → 下载 → 重启 HA
 
 ## 配置
 
