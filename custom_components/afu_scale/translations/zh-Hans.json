@@ -1,0 +1,46 @@
+{
+  "zh-Hans": {
+    "config": {
+      "step": {
+        "user": {
+          "title": "AFU 体脂秤",
+          "description": "输入体脂秤的 MAC 地址及个人参数（用于 BIA 计算）。",
+          "data": {
+            "address": "MAC 地址",
+            "height_cm": "身高 (cm)",
+            "sex": "性别",
+            "age": "年龄"
+          },
+          "data_description": {
+            "address": "例如 D0:5C:00:29:DC:8C",
+            "height_cm": "用于体脂率等 BIA 指标计算",
+            "sex": "male=男, female=女",
+            "age": "用于 BIA 指标计算"
+          }
+        }
+      },
+      "error": {
+        "invalid_mac": "MAC 地址格式无效，应为 AA:BB:CC:DD:EE:FF"
+      }
+    }
+  },
+  "en": {
+    "config": {
+      "step": {
+        "user": {
+          "title": "AFU Body Scale",
+          "description": "Enter the scale's MAC address and personal parameters (for BIA calculation).",
+          "data": {
+            "address": "MAC address",
+            "height_cm": "Height (cm)",
+            "sex": "Sex",
+            "age": "Age"
+          }
+        }
+      },
+      "error": {
+        "invalid_mac": "Invalid MAC address format, expected AA:BB:CC:DD:EE:FF"
+      }
+    }
+  }
+}
