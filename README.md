@@ -140,12 +140,13 @@ card_mod:
 
 ```
 custom_components/afu_scale/
-├── __init__.py         # 集成入口（含 update_listener）
+├── __init__.py         # 集成入口（含 update_listener + reset_baseline service）
 ├── config_flow.py      # UI 配置 + options flow
 ├── const.py            # 常量
 ├── coordinator.py      # BLE 连接 / 报文解析 / BIA 计算 / 跳变过滤
 ├── binary_sensor.py    # "测量中"传感器
 ├── sensor.py           # 数据传感器实体
+├── services.yaml       # service 描述（reset_baseline）
 ├── manifest.json
 └── strings.json / translations/
 ```
@@ -156,6 +157,39 @@ custom_components/afu_scale/
 - 连接问题先确认：秤与代理距离、手机 App 是否断开、代理 `active: true`
 - 跳变数据被丢时，日志关键字：`AFU Scale: 体重跳变`（info 级别，正常就能看到）
 - 日志关键字：`AFU Scale`
+
+## 重置 baseline
+
+如果 baseline 被错误地设成了测试值（如 8kg 物体），或者体重真的发生了大幅变化导致所有读数被卡住，可以调用 `afu_scale.reset_baseline` service：
+
+**方式 1：UI**  
+开发者工具 → 服务 → 选 `afu_scale.reset_baseline` → 执行
+
+**方式 2：自动化**
+
+```yaml
+service: afu_scale.reset_baseline
+```
+
+调用后，**下一次稳定的体重读数**会无条件接受为新 baseline。
+
+> 注意：service 不会清理 recorder history 里已经写进去的脏数据。清理方法见上文「历史数据清理」。
+
+## 历史数据清理
+
+`recorder.purge_entities` 删全部；SQL 精确删部分（路径取决于 HA 装在哪：HAOS 在 `/config/home-assistant_v2.db`，Docker 看挂载）：
+
+```sql
+-- 找：所有 < 10kg 或 > 200kg 的体重异常
+SELECT last_updated, state FROM states
+WHERE entity_id = 'sensor.afu_ti_zhi_cheng_ti_zhong'
+  AND (CAST(state AS REAL) < 10 OR CAST(state AS REAL) > 200);
+
+-- 删
+DELETE FROM states
+WHERE entity_id = 'sensor.afu_ti_zhi_cheng_ti_zhong'
+  AND (CAST(state AS REAL) < 10 OR CAST(state AS REAL) > 200);
+```
 
 ## 开源协议
 
