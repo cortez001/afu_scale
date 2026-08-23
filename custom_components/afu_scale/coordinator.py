@@ -90,16 +90,13 @@ class AfuScaleCoordinator:
         self._idle_handle: asyncio.TimerHandle | None = None
         self.measuring_entity = None
 
-        # 体重跳变过滤：本会话内上一次接受的稳定体重
+        # 体重跳变过滤：上一次接受的稳定体重（跨会话保留，单人长期使用）
         self._last_accepted_weight: float | None = None
 
     def _set_measuring(self, value: bool) -> None:
         if self.measuring == value:
             return
         self.measuring = value
-        if value:
-            # 新测量会话开始：清零 delta 基准，避免跨会话误判
-            self._last_accepted_weight = None
         if self.measuring_entity is not None:
             self.measuring_entity.async_update_state(value)
 
