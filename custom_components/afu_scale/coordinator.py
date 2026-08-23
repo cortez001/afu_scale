@@ -190,21 +190,8 @@ class AfuScaleCoordinator:
             return
         weight_kg, is_stable, impedance = parsed
 
-        # 任何数据进来都先保持 measuring 状态活跃——人在秤上
-        self._touch_measuring()
-
-        # unstable 报文（人还在找平衡/上下秤过渡中）：不更新任何传感器。
-        # 只刷新 idle 计时器，避免 measuring 误关；weight / impedance / BIA
-        # / timestamp 全部保持上次值，history 不会写入过渡中的脏数据。
-        if not is_stable:
-            _LOGGER.debug(
-                "AFU Scale: unstable reading %.2fkg impedance=%.0fΩ (waiting for stable)",
-                weight_kg, impedance,
-            )
-            return
-
         # 体重跳变过滤：仅对 stable 报文、与上一次接受的稳定体重比对
-        if self._last_accepted_weight is not None:
+        if is_stable and self._last_accepted_weight is not None:
             delta = abs(weight_kg - self._last_accepted_weight)
             if delta > self.max_delta_kg:
                 _LOGGER.info(
@@ -213,18 +200,21 @@ class AfuScaleCoordinator:
                     delta, self._last_accepted_weight, weight_kg,
                     self.max_delta_kg,
                 )
+                # 人还在秤上：保持 measuring 状态和 idle 计时器
+                self._touch_measuring()
                 return  # 全丢：weight/impedance/BIA/timestamp 都不更新
 
-        # 接受此读数
-        self._last_accepted_weight = weight_kg
+        if is_stable:
+            self._last_accepted_weight = weight_kg
 
         _LOGGER.debug(
-            "AFU Scale: %.2fkg stable impedance=%.0fΩ",
-            weight_kg, impedance,
+            "AFU Scale: %.2fkg stable=%s impedance=%.0fΩ",
+            weight_kg, is_stable, impedance,
         )
+        self._touch_measuring()
         values = self._compute_bia(weight_kg, impedance)
         values["weight"] = weight_kg
-        values["stable"] = 1.0
+        values["stable"] = 1.0 if is_stable else 0.0
         values["impedance"] = impedance
         values["timestamp"] = dt_util.utcnow()
         for key, entity in self.entities.items():
