@@ -8,18 +8,40 @@
           "address": "MAC 地址",
           "height_cm": "身高 (cm)",
           "sex": "性别",
-          "age": "年龄"
+          "age": "年龄",
+          "max_delta_kg": "体重跳变阈值"
         },
         "data_description": {
           "address": "例如 D0:5C:00:29:DC:8C",
           "height_cm": "用于体脂率等 BIA 指标计算",
           "sex": "male=男, female=女",
-          "age": "用于 BIA 指标计算"
+          "age": "用于 BIA 指标计算",
+          "max_delta_kg": "同一测量会话内，两次稳定读数差值超过此值时丢弃新数据，防止换人踩或 BLE 抽风。范围 1–50 kg，默认 10。"
         }
       }
     },
     "error": {
       "invalid_mac": "MAC 地址格式无效，应为 AA:BB:CC:DD:EE:FF"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "AFU 体脂秤选项",
+        "description": "在线修改身高、年龄、性别和体重跳变阈值。",
+        "data": {
+          "height_cm": "身高 (cm)",
+          "sex": "性别",
+          "age": "年龄",
+          "max_delta_kg": "体重跳变阈值"
+        },
+        "data_description": {
+          "height_cm": "用于体脂率等 BIA 指标计算",
+          "sex": "male=男, female=女",
+          "age": "用于 BIA 指标计算",
+          "max_delta_kg": "同一测量会话内，两次稳定读数差值超过此值时丢弃新数据，范围 1–50 kg。"
+        }
+      }
     }
   }
 }
