@@ -82,6 +82,7 @@ class AfuScaleCoordinator:
         self._connect_lock = asyncio.Lock()
         self._task: asyncio.Task | None = None
         self._shutdown = False
+        self._paused = False  # True 时停止重连，让位给手机 app
         self.entities: dict[str, AfuSensor] = {}
 
         # 测量中状态：收到有效数据包置 True，无数据超时后置 False
@@ -145,6 +146,10 @@ class AfuScaleCoordinator:
 
     async def _run(self) -> None:
         while not self._shutdown:
+            if self._paused:
+                # 用户主动暂停：每 5s 检查一次是否恢复
+                await asyncio.sleep(5)
+                continue
             try:
                 await self._connect_and_listen()
             except asyncio.CancelledError:
@@ -154,6 +159,29 @@ class AfuScaleCoordinator:
             if self._shutdown:
                 break
             await asyncio.sleep(RECONNECT_DELAY)
+
+    async def set_paused(self, paused: bool) -> None:
+        """控制 BLE 连接：paused=True 时主动断开并不再重连。
+
+        适用场景：让位给手机 app（如 Mi Fitness）连接秤。
+        - 关闭开关：主动断开现有连接 + 停止重连尝试
+        - 开启开关：恢复重连尝试
+        """
+        if paused == self._paused:
+            return
+        self._paused = paused
+        if paused:
+            _LOGGER.info(
+                "AFU Scale %s: 已暂停 BLE 连接（让位给手机 app）", self.address
+            )
+            if self._client:
+                try:
+                    await self._client.disconnect()
+                except Exception:  # noqa: BLE001
+                    pass
+                self._client = None
+        else:
+            _LOGGER.info("AFU Scale %s: 已恢复 BLE 连接", self.address)
 
     async def _connect_and_listen(self) -> None:
         async with self._connect_lock:
