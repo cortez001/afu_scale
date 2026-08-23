@@ -35,6 +35,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
+    # 注册 reset_baseline service（多实例时只在第一个注册）
+    if not hass.services.has_service(DOMAIN, "reset_baseline"):
+        async def handle_reset_baseline(call) -> None:
+            """清掉所有实例的 baseline，下次 stable 报文作为新 baseline。"""
+            for coord in hass.data[DOMAIN].values():
+                coord.reset_baseline()
+
+        hass.services.async_register(
+            DOMAIN, "reset_baseline", handle_reset_baseline
+        )
+
     coordinator.start()
     return True
 
@@ -42,7 +54,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = hass.data[DOMAIN].pop(entry.entry_id)
     await coordinator.stop()
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    result = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    # 最后一个实例卸载时移除 service
+    if result and not hass.data[DOMAIN]:
+        hass.services.async_remove(DOMAIN, "reset_baseline")
+    return result
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
