@@ -11,6 +11,7 @@
 - 本地 BIA 计算：BMI、体脂率、水分率、肌肉量、蛋白质率、骨量
 - "测量中"二进制传感器：收到数据即开，15 秒无数据自动关（适合做动画/通知触发）
 - **体重跳变过滤**：跨 session 保留 baseline，与上一次接受的稳定体重比对，超过阈值（默认 10 kg，可配 1–50 kg）则丢弃新数据，防止换人踩或 BLE 抽风污染 BIA
+- **蓝牙连接开关**：一键断开 BLE 让位给手机 app（如 Mi Fitness），用完再开回来；告别"删集成-重装"的麻烦
 - 自动重连（断开后每 30 秒重试）
 - 中文实体命名，`afu` 前缀避免与其他体脂秤冲突
 - 支持 UI 配置（config flow），无需手改 yaml
@@ -70,6 +71,7 @@ HACS → 自定义存储库 → 填入仓库地址 https://github.com/carl-chang
 | `sensor.afu_ti_zhi_cheng_gu_liang` | kg | 骨量 |
 | `sensor.afu_ti_zhi_cheng_zui_jin_ce_liang_shi_jian` | - | 最近测量时间 |
 | `binary_sensor.afu_ti_zhi_cheng_ce_liang_zhong` | - | 测量中（收到数据开，15s 无数据关） |
+| `switch.afu_ti_zhi_cheng_lan_ya_lian_jie` | - | 蓝牙连接开关（关=断开让位给手机 app） |
 
 > 实体 ID 由名称拼音自动生成，实际 ID 以 HA 中为准（开发者工具 → 状态 搜索 `afu`）。
 
@@ -115,6 +117,28 @@ card_mod:
     {% endif %}
 ```
 
+### 蓝牙开关：用手机 app 同步前先断开
+
+体脂秤同一时间只允许一个 BLE 客户端。`switch.afu_ti_zhi_cheng_lan_ya_lian_jie` 关掉 → HA 主动断开连接 → 你可以打开 Mi Fitness 同步数据 → 用完后再开回来。
+
+也可以做成自动化，比如"每天早上 7 点自动断开 10 分钟让 Mi Fitness 同步"：
+
+```yaml
+automation:
+  - alias: AFU 早间让位给 Mi Fitness
+    trigger:
+      - platform: time
+        at: "07:00:00"
+    action:
+      - service: switch.turn_off
+        target:
+          entity_id: switch.afu_ti_zhi_cheng_lan_ya_lian_jie
+      - delay: "00:10:00"
+      - service: switch.turn_on
+        target:
+          entity_id: switch.afu_ti_zhi_cheng_lan_ya_lian_jie
+```
+
 ## 工作原理
 
 本集成使用 HA 的 `bluetooth` 集成（`bluetooth.async_ble_device_from_address`）获取可连接设备，通过 `bleak` + `bleak-retry-connector` 建立 GATT 连接，订阅服务 `0xFFB0` 下的特征 `0xFFB2`（notify），解析以 `0xAC` 开头的体重报文。
@@ -143,9 +167,10 @@ custom_components/afu_scale/
 ├── __init__.py         # 集成入口（含 update_listener + reset_baseline service）
 ├── config_flow.py      # UI 配置 + options flow
 ├── const.py            # 常量
-├── coordinator.py      # BLE 连接 / 报文解析 / BIA 计算 / 跳变过滤
+├── coordinator.py      # BLE 连接 / 报文解析 / BIA 计算 / 跳变过滤 / 暂停控制
 ├── binary_sensor.py    # "测量中"传感器
 ├── sensor.py           # 数据传感器实体
+├── switch.py           # 蓝牙连接开关（让位给手机 app）
 ├── services.yaml       # service 描述（reset_baseline）
 ├── manifest.json
 └── strings.json / translations/
