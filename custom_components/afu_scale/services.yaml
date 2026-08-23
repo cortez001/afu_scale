@@ -1,0 +1,10 @@
+reset_baseline:
+  name: 重置体重 baseline
+  description: >-
+    清除当前体重 baseline（_last_accepted_weight 置 None）。
+    调用后，下一次稳定的体重读数会无条件接受为新 baseline。
+    适用场景：
+    1. 测试时把错误值（如 8kg 物体）误当成了 baseline
+    2. 体重真的发生了大幅变化（> 阈值）导致所有读数都被卡住
+    3. 想强制重新校准 baseline
+  fields: {}
