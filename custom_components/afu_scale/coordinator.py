@@ -108,6 +108,23 @@ class AfuScaleCoordinator:
         self._shutdown = False
         self._task = asyncio.create_task(self._run())
 
+    def reset_baseline(self) -> None:
+        """重置 baseline：下次 stable 报文会无条件接受为新 baseline。
+
+        适用场景：
+        - 测试时把错误值（如 8kg 物体）误当成了 baseline
+        - 体重真的发生了大幅变化（> 阈值）导致所有读数都被卡住
+        - 想强制重新校准
+        """
+        if self._last_accepted_weight is not None:
+            _LOGGER.info(
+                "AFU Scale %s: baseline 已重置（之前 %.1fkg）",
+                self.address, self._last_accepted_weight,
+            )
+        else:
+            _LOGGER.info("AFU Scale %s: baseline 已重置（之前未设置）", self.address)
+        self._last_accepted_weight = None
+
     async def stop(self) -> None:
         self._shutdown = True
         if self._idle_handle is not None:
