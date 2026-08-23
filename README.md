@@ -10,9 +10,11 @@
 - 解析 `0xAC` 体重报文（体重 / 稳定标志 / 阻抗）
 - 本地 BIA 计算：BMI、体脂率、水分率、肌肉量、蛋白质率、骨量
 - "测量中"二进制传感器：收到数据即开，15 秒无数据自动关（适合做动画/通知触发）
+- **体重跳变过滤**：同一测量会话内两次稳定读数差值超过阈值时丢弃新数据，防止换人踩或 BLE 抽风污染 BIA（阈值可配，1–50 kg）
 - 自动重连（断开后每 30 秒重试）
 - 中文实体命名，`afu` 前缀避免与其他体脂秤冲突
 - 支持 UI 配置（config flow），无需手改 yaml
+- **options flow**：安装后仍可在 HA UI 中在线修改身高/年龄/性别/跳变阈值
 
 ## 前置条件
 
@@ -45,8 +47,13 @@ HACS → 自定义存储库 → 填入仓库地址 https://github.com/carl-chang
 | 身高 (cm) | 用于 BIA 计算 |
 | 性别 | male=男 / female=女 |
 | 年龄 | 用于 BIA 计算 |
+| 体重跳变阈值 (kg) | 同一测量会话内，两次稳定读数差值超过此值时丢弃新数据，默认 10，范围 1–50 |
 
 > 找不到 MAC？用手机 App（如 nRF Connect）或 `bleak` 扫描广播名 `AFU-WL-TZ-A1` 即可。
+
+### 在线修改参数
+
+集成添加后，进入 **设置 → 设备与服务 → AFU 体脂秤 → 配置**，可在线修改身高/年龄/性别/跳变阈值，**无需删除重装**。修改后即时生效（下次测量时使用新参数）。
 
 ## 实体
 
@@ -121,14 +128,20 @@ card_mod:
 | 6 | `0x02` 表示数值稳定 |
 | 8-9 | 阻抗（Big Endian，Ω） |
 
+### 体重跳变过滤
+
+同一测量会话（人在秤上、连续收到报文直到离场）内，**仅对 `stable` 报文**与上一次接受的稳定体重比对：若差值 > 阈值，新数据被丢弃（weight / impedance / BIA / timestamp 全部保持上次值），但测量中状态继续维持。`unstable` 报文不受影响，用于实时显示秤上读数。日志中以 `info` 级别记录被丢的数据点，方便排错。
+
+> 注意：被丢弃的报文会让"测量中"状态和 idle 计时器继续刷新，因此 UI 上不会误判为"测量结束"。
+
 ## 目录结构
 
 ```
 custom_components/afu_scale/
-├── __init__.py         # 集成入口
-├── config_flow.py      # UI 配置
+├── __init__.py         # 集成入口（含 update_listener）
+├── config_flow.py      # UI 配置 + options flow
 ├── const.py            # 常量
-├── coordinator.py      # BLE 连接 / 报文解析 / BIA 计算
+├── coordinator.py      # BLE 连接 / 报文解析 / BIA 计算 / 跳变过滤
 ├── binary_sensor.py    # "测量中"传感器
 ├── sensor.py           # 数据传感器实体
 ├── manifest.json
@@ -139,6 +152,7 @@ custom_components/afu_scale/
 
 - 在 `coordinator.py` 中把 `_LOGGER.debug` 改为 `_LOGGER.info` 可查看每次收到的体重/阻抗
 - 连接问题先确认：秤与代理距离、手机 App 是否断开、代理 `active: true`
+- 跳变数据被丢时，日志关键字：`AFU Scale: 体重跳变`（info 级别，正常就能看到）
 - 日志关键字：`AFU Scale`
 
 ## 开源协议
